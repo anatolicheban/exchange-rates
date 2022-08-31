@@ -3,9 +3,23 @@ const input = document.querySelector(".app__input-field");
 const body = document.querySelector('body')
 const selects = document.querySelectorAll('.select')
 
+let output = document.querySelector('.app__output-value')
+
+let currentDate = new Date().toLocaleDateString()
+document.querySelector('.app__output').dataset.day = `Курс станом на ${currentDate}`
 //====================Получение курса валют===========================
 
-async function getCourse(from, to) {
+async function getCourse() {
+  let selectFrom = document.querySelectorAll('.select')[0].value
+  let selectTo = document.querySelectorAll('.select')[1].value
+  let symbol = selectTo === 'USD' ? '$' :
+    selectTo === 'UAH' ? '₴' : '€';
+  console.log('From: ', selectFrom);
+  console.log('To: ', selectTo);
+
+  let itemName = `${selectFrom} to ${selectTo}`
+  console.log('Item name: ', itemName);
+
   const options = {
     method: 'GET',
     headers: {
@@ -14,13 +28,27 @@ async function getCourse(from, to) {
     }
   };
 
-  let itemName = `${from} to ${to}`
+  let course
 
-  fetch(`https://currency-exchange.p.rapidapi.com/exchange?from=${from}&to=${to}&q=1.0`, options)
-    .then(data => console.log(data.json()))
-    .then(data => {
-      return data
+  if (sessionStorage.getItem(itemName)) {
+    course = +sessionStorage.getItem(itemName)
+    let result = Math.round(input.value * course * 1000) / 1000
+    output.innerHTML = `${result} ${symbol}`
+    return
+  }
+
+  fetch(`https://currency-exchange.p.rapidapi.com/exchange?from=${selectFrom}&to=${selectTo}&q=1.0`, options)
+    .then(response => response.json())
+    .then(response => {
+      sessionStorage.setItem(itemName, response)
+      console.log(response)
+      let result = Math.round(input.value * response * 1000) / 1000
+      console.log(result)
+      output.innerHTML = `${result} ${symbol}`
+
     })
+    .catch(err => console.error(err));
+
 }
 
 
@@ -31,10 +59,11 @@ buttons.forEach((button) => {
     event.preventDefault();
     if (!button.classList.contains("reset")) {
       input.value += this.innerText
-      calcMoney()
+      getCourse()
       console.log(input.value);
     } else if (button.classList.contains("reset")) {
       input.value = '0'
+      getCourse()
     }
   });
 });
@@ -61,22 +90,9 @@ window.addEventListener('keyup', function (event) {
 
 //=========================Считаем денежки====================================
 
-// console.log(selectFrom);
-// console.log(selectTo);
-let output = document.querySelector('.app__output-value')
-
-
-input.oninput = calcMoney;
-
-// localStorage.setItem('UAH to USD', 'test')
-
-async function calcMoney() {
-  let selectFrom = document.querySelectorAll('.select')[0].value
-  console.log(selectFrom);
-  let selectTo = document.querySelectorAll('.select')[1].value
-  console.log(selectTo);
-  let k = getCourse(selectFrom, selectTo)
-  console.log(k);
-  output.innerText = `${Math.round(input.value * k * 1000) / 1000}`
-}
-
+input.oninput = getCourse;
+selects.forEach(select => {
+  select.addEventListener('input', () => {
+    getCourse()
+  })
+})
